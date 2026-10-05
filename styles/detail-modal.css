@@ -1,0 +1,282 @@
+/* --------------------------------------------------------- detail modal */
+
+/* The modal width is the only cap. Capping the content again at 920px left a
+   margin of dead space on a 1040px modal and handed the picture less room than
+   the metadata column, which is backwards for an image browser. */
+.ib-detail-wrap {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.ib-detail-preview {
+  flex: 1 1 460px;
+  min-width: 260px;
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary);
+}
+
+/* Positions the arrows and the counter against the picture area alone, so
+   they sit on the image's midline rather than the whole preview's. */
+.ib-detail-viewport {
+  position: relative;
+}
+
+.ib-detail-side {
+  flex: 0 1 300px;
+  min-width: 240px;
+}
+
+.ib-detail-title {
+  margin: 0 0 10px;
+  word-break: break-all;
+}
+
+.ib-detail-row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: var(--font-ui-small);
+}
+
+.ib-detail-key {
+  flex: 0 0 64px;
+  color: var(--text-muted);
+}
+
+.ib-detail-val {
+  flex: 1 1 auto;
+  word-break: break-all;
+}
+
+.ib-detail-sub {
+  margin: 14px 0 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ib-ref-list {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.ib-ref-item {
+  padding: 3px 6px;
+  border-radius: var(--ib-radius);
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ib-ref-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ib-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.ib-prompt-input {
+  width: 100%;
+  margin: 8px 0;
+}
+
+/* ================================================================ v0.2 ==== */
+
+.ib-filter {
+  max-width: 128px;
+}
+
+/* Keyboard focus rings the picture, not the tile-plus-caption box, so it lands
+   in the same place as the hover and selection treatments. */
+.ib-card.is-focused .ib-thumb {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------- selection affordances */
+
+/*
+ * The checkbox follows the "hidden until relevant" pattern: invisible on an
+ * untouched grid, revealed by hover, and pinned on for every card once a
+ * selection exists — the grid gains `.has-selection` the moment anything is
+ * selected — so multi-select never turns into hunt-the-checkbox.
+ *
+ * It sits *on* the image, so it needs enough body to read over any picture:
+ * an opaque plate and a hairline border — no shadow, which on a photograph
+ * reads as a smudge around the box rather than as lift. The checkmark is a
+ * border corner (crisper than any icon font at this size), with the elbow
+ * radius softened by a pixel so it does not look stamped.
+ */
+.ib-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--background-modifier-border-hover);
+  border-radius: var(--ib-radius);
+  background: var(--background-primary);
+  opacity: 0;
+  transform: scale(0.88);
+  transition: opacity var(--ib-dur-fast) var(--ib-ease),
+    transform var(--ib-dur-fast) var(--ib-ease-spring),
+    background-color var(--ib-dur-fast) var(--ib-ease),
+    border-color var(--ib-dur-fast) var(--ib-ease);
+  z-index: 6;
+  cursor: pointer;
+  /* Invisible must mean inert: an opacity-0 checkbox over the tile's top-left
+     corner would otherwise swallow clicks meant for the picture. */
+  pointer-events: none;
+}
+
+.ib-card:hover .ib-check,
+.ib-card.is-selected .ib-check {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* Hover says "this one", even before it is checked. */
+.ib-check:hover {
+  border-color: var(--interactive-accent);
+}
+
+/* Press feedback, last so it wins the cascade over the shown state. */
+.ib-grid .ib-check:active {
+  transform: scale(0.92);
+}
+
+.ib-card.is-selected .ib-check {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+
+.ib-card.is-selected .ib-check:hover {
+  filter: brightness(1.08);
+}
+
+.ib-card.is-selected .ib-check::after {
+  content: "";
+  /* inset:0 + margin:auto centres the tick box in both axes regardless of the
+     box's size, and the 45° rotation pivots on the box centre — so the mark
+     stays dead-centre after rotating, which the old top/left offsets
+     hand-tuned and drifted from. */
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 5px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 1.8px 1.8px 0;
+  border-radius: 0 0 1px 0;
+  /* The tick draws itself in with the same spring the box popped in with. */
+  transform: rotate(45deg) scale(1);
+  transition: transform var(--ib-dur-base) var(--ib-ease-spring);
+  animation: ib-tick var(--ib-dur-base) var(--ib-ease-spring);
+}
+
+@keyframes ib-tick {
+  from {
+    transform: rotate(45deg) scale(0);
+  }
+}
+
+.ib-ref-pill {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: var(--ib-radius);
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.ib-ref-pill.is-orphan {
+  background: var(--color-orange);
+  color: var(--text-on-accent);
+}
+
+/* -------------------------------------------------------- selection bar */
+
+.ib-selbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  /* The bar appears by display-toggle (transitions cannot cross display:none),
+     so its entrance is an animation instead: a 6px rise, once per appearance
+     (display:none cancels animations, so each reveal replays it). The keyframes
+     live in cards.css — one definition, two users. */
+  animation: ib-rise var(--ib-dur-base) var(--ib-ease-out);
+}
+
+body[data-ib-motion="none"] .ib-selbar {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ib-selbar {
+    animation: none;
+  }
+}
+
+.ib-selbar.is-hidden {
+  display: none;
+}
+
+.ib-sel-count {
+  margin-right: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* The selection bar's buttons are `ib-btn` from TypeScript, so their look —
+   hairline, height, radius, the danger variant and its hover — lives in
+   shell-and-tree.css with every other button. The bar only asks for a slightly
+   tighter gap, because the count label sits immediately to their left. */
+.ib-sel-btn {
+  gap: 5px;
+}
+
+.ib-sel-icon {
+  display: inline-flex;
+}
+
+.ib-sel-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ib-orphan-chip {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--ib-radius);
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background-color var(--ib-dur-fast) var(--ib-ease),
+    color var(--ib-dur-fast) var(--ib-ease);
+}
+
+.ib-orphan-chip:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+

@@ -1,0 +1,474 @@
+/* ------------------------------------------------------------------ motion
+
+   Every transition in this file is written with these tokens, so the whole
+   interface can be calmed down or switched off from one place
+   (设置 → 界面动效). The three durations are chosen by what the change means,
+   not by which element it happens to be on:
+
+     fast   90ms  tone on something you are already pointing at — hover,
+                  a chip lighting up, a button's fill
+     base  140ms  an affordance appearing or moving a little: the checkbox
+                  fading in, a caption taking the accent colour, a tile lifting
+     slow  190ms  real travel: the picture scaling, a folder pile fanning out
+
+   Anything longer than ~200ms starts to feel like the interface is lagging
+   behind the pointer; anything shorter than ~80ms reads as a jump cut rather
+   than a transition. The two easings are the only two the plugin uses: `ease`
+   leaves immediately and settles softly (tonal changes, appearing things),
+   `ease-out` has the longer tail that makes travel look like it decelerates.
+
+   Why <body> and not the view root: Obsidian appends modals to <body>, so this
+   is the one scope that reaches the grid, the lightbox and the prompt boxes
+   alike. The attribute is written by the plugin (main.ts → applyMotion) and is
+   the only thing that reads the setting.
+
+   `full` is declared together with the bare `body` rule on purpose. The custom
+   properties cascade per element, so the attribute selector (0,1,1) beats the
+   reduced-motion media query (0,1,0) below — an explicit choice in settings
+   wins over the OS default, and the OS default still applies when nothing has
+   been chosen yet. */
+
+body,
+body[data-ib-motion="full"] {
+  --ib-dur-fast: 90ms;
+  --ib-dur-base: 140ms;
+  --ib-dur-slow: 190ms;
+  --ib-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ib-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* A touch of overshoot for the things that pop *in* — the selection checkbox
+     and its tick — so they read as springy without ever wobbling. */
+  --ib-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* One corner radius for every surface the plugin draws: tiles, buttons,
+     chips, pills, tree rows, modal panes. The 2–3px values on indicator *bars*
+     (the drag-insert line, the active-tab underline) are bar styling, not box
+     corners; nothing else gets a radius of its own. */
+  --ib-radius: 4px;
+  /* Icon-button edge length. Held equal to the jukebox's --mp-icon-size so the
+     two plugins' toolbars agree at a glance. */
+  --ib-icon-size: 28px;
+  /* One height for every control in a toolbar. A shorter control beside a 28px
+     icon button leaves a 1px lip that reads as "misaligned" without anyone
+     being able to say why, so every control in a row shares this number. */
+  --ib-control-h: 28px;
+}
+
+body[data-ib-motion="reduced"] {
+  --ib-dur-fast: 60ms;
+  --ib-dur-base: 90ms;
+  --ib-dur-slow: 120ms;
+}
+
+body[data-ib-motion="none"] {
+  --ib-dur-fast: 0ms;
+  --ib-dur-base: 0ms;
+  --ib-dur-slow: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    --ib-dur-fast: 0ms;
+    --ib-dur-base: 0ms;
+    --ib-dur-slow: 0ms;
+  }
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.ib-root {
+  --ib-thumb: 148px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------- the tabs
+
+   Three panes, all of them mounted at all times, switched by one class. The
+   alternative — building the pane you asked for and throwing away the one you
+   left — costs the grid its scroll position, its selection and its focus, and
+   buys nothing: the heatmap is a few hundred divs and the settings page is a
+   form. Coming back has to feel like coming back, not like reloading. */
+
+.ib-nav {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 6px 10px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* `body ` on every rule that targets a real <button> is not decoration, but it
+   is less than it looks. Obsidian styles all of them with
+   `button:not(.clickable-icon)` — background, colour and a five-layer
+   `--input-shadow` — and that selector is (0,1,1). A bare `.ib-btn` is (0,1,0)
+   and loses outright, which is why an unstyled control once read as checked and
+   the toolbar carried shadows.
+
+   `body .ib-btn` is ALSO (0,1,1). So it does not out-rank the host either: it
+   ties, and wins only because Obsidian appends a plugin's styles.css after
+   app.css. Measured rather than assumed — swap the two stylesheets in a test
+   page and the host's five-layer shadow comes straight back. That is why every
+   property the host also declares (`border`, `background`, `box-shadow`,
+   `color`) is pinned on the base rule below: nothing may depend on inheritance
+   from a rule we are only tied with. `test/tokens.cjs` asserts the prefix is
+   present, so the tie stays deliberate rather than accidental. */
+
+body .ib-nav-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 7px;
+  border: 0;
+  border-radius: var(--ib-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--ib-dur-fast) var(--ib-ease),
+    background-color var(--ib-dur-fast) var(--ib-ease);
+}
+
+body .ib-nav-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* The active tab is accent ink, the same "on" convention the jukebox uses for a
+   mode button; the underline below is what names which tab it is. */
+body .ib-nav-btn.is-active {
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+/* The underline is drawn inside the strip so it lands exactly on its border
+   rather than one pixel below it at non-integer zoom levels. */
+.ib-nav-btn.is-active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--interactive-accent);
+}
+
+.ib-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.ib-nav-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ib-pane {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ib-pane.is-active {
+  display: flex;
+  flex-direction: column;
+}
+
+.ib-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ib-search {
+  flex: 1 1 180px;
+  min-width: 120px;
+}
+
+/* The toolbar's three native fields were the last raised chrome in the pane.
+   Obsidian styles text inputs at (0,1,1) with `--background-modifier-form-field`,
+   `--input-radius` (5px) and `--input-height` (30px), and selects at the same
+   specificity with a five-layer `--input-shadow` on top — so a 30px, 5px,
+   shadowed box sat in a row of 28px, 4px, flat buttons. Jukebox pins its search
+   field flat for exactly this reason; this is that same frame, so the two
+   toolbars read alike.
+
+   `background-color` rather than the `background` shorthand, and on the select
+   only the colour: the caret is a `background-image` (see `dropdown` in
+   toolbar.ts) and the shorthand would wipe it. For the same reason the select
+   keeps a 24px right padding — the arrow is drawn in that gutter, so shrinking
+   it to 8px would put the caret under the label. */
+body .ib-search,
+body select.ib-filter,
+body select.ib-sort {
+  height: var(--ib-control-h);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+  background-color: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  box-shadow: none;
+}
+
+body .ib-search {
+  padding: 0 8px;
+}
+
+body select.ib-filter,
+body select.ib-sort {
+  padding: 0 24px 0 8px;
+}
+
+body .ib-search:hover,
+body select.ib-filter:hover,
+body select.ib-sort:hover {
+  border-color: var(--background-modifier-border-hover);
+}
+
+/* The field's focus signal is its frame turning accent, not a ring: a ring
+   around a field that already has a border reads as two frames. This is the
+   same choice the jukebox makes for its search field. */
+body .ib-search:focus-visible,
+body select.ib-filter:focus-visible,
+body select.ib-sort:focus-visible {
+  border-color: var(--interactive-accent);
+  box-shadow: none;
+  outline: none;
+}
+
+.ib-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ib-field-label {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+body .ib-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ib-icon-size);
+  height: var(--ib-icon-size);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--ib-radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color var(--ib-dur-fast) var(--ib-ease),
+    color var(--ib-dur-fast) var(--ib-ease);
+}
+
+body .ib-icon-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* No press transform: the hover fill is the entire feedback. A button that
+   dips under the finger added a kind of motion nothing else in the shell has. */
+
+.ib-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ----------------------------------------------------------- text buttons
+
+   The bordered counterpart of the icon button: every confirm/cancel pair, the
+   selection bar, the empty state's call to action. One height, one hairline,
+   one radius.
+
+   `body ` on the base rule for the same reason as above — Obsidian styles
+   `button:not(.clickable-icon)` at (0,1,1) with a fill, a colour and a
+   five-layer `--input-shadow` that a plain class cannot outrank. This family
+   exists because the alternative was four slightly different buttons: the
+   modals' own (which fell through to the host's styling and kept its shadow),
+   the selection bar's, and the empty state's. */
+
+body .ib-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--ib-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  line-height: 1;
+  /* A narrow pane squeezes the row; a label that breaks in half is worse than
+     one that forces the row to wrap onto its own line. */
+  white-space: nowrap;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: background-color var(--ib-dur-fast) var(--ib-ease),
+    border-color var(--ib-dur-fast) var(--ib-ease),
+    color var(--ib-dur-fast) var(--ib-ease);
+}
+
+body .ib-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+}
+
+/* Destructive actions are marked in ink, not by being filled red: a red block
+   in a row of quiet buttons shouts about a button nobody has pressed yet. */
+body .ib-btn.is-danger {
+  color: var(--text-error);
+}
+
+body .ib-btn.is-danger:hover {
+  border-color: var(--text-error);
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+/* The one filled variant, for the single primary action in a region — filling
+   everything is how a row of buttons turns into noise. */
+body .ib-btn.mod-cta {
+  border-color: transparent;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+body .ib-btn.mod-cta:hover {
+  background: var(--interactive-accent-hover);
+  color: var(--text-on-accent);
+}
+
+.ib-zoom {
+  width: 110px;
+}
+
+.ib-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------ folder tree */
+
+.ib-sidebar {
+  flex: 0 0 230px;
+  width: 230px;
+  overflow-y: auto;
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.ib-tree {
+  padding: 6px 0 14px;
+}
+
+.ib-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px;
+  padding: 4px 8px 4px 0;
+  border-radius: var(--ib-radius);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--ib-dur-fast) var(--ib-ease),
+    color var(--ib-dur-fast) var(--ib-ease);
+}
+
+.ib-tree-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ib-tree-row.is-active {
+  background: var(--background-modifier-active-hover);
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.ib-tree-row.ib-drop-target {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* A blocked drop gets a red hairline, drawn as an `outline` rather than
+   `box-shadow: inset` because it *is* a 1px stroke — saying so in the property
+   that means it costs no shadow layer is the whole point of the flat pass. */
+.ib-tree-row.ib-drop-blocked {
+  outline: 1px solid var(--text-error);
+  outline-offset: -1px;
+}
+
+.ib-tree-row.is-dragging {
+  opacity: 0.45;
+}
+
+.ib-tree-arrow,
+.ib-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.ib-tree-arrow {
+  width: 14px;
+}
+
+.ib-tree-arrow svg,
+.ib-tree-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ib-tree-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-tree-badge {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: var(--ib-radius);
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+/* ------------------------------------------------------- keyboard focus
+
+   Obsidian draws focus as a 3px box-shadow ring; redraw the same signal as an
+   outline so "no shadow" survives the focus walk too. The group sits here once
+   rather than beside every button family because all of them answer to it, and
+   it carries an extra pseudo-class, so it out-ranks each family's own
+   `box-shadow: none` no matter which shard declares that. */
+
+body .ib-nav-btn:focus-visible,
+body .ib-icon-btn:focus-visible,
+body .ib-btn:focus-visible,
+body .ib-lightbox-nav:focus-visible,
+body .ib-zoom-btn:focus-visible {
+  box-shadow: none;
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+

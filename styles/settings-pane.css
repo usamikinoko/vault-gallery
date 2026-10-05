@@ -1,0 +1,58 @@
+/* ============================================================ v0.5 settings
+
+   Obsidian owns the look of `.setting-item`, so there is deliberately nothing
+   here for the rows themselves — this file only spaces the pane, because a
+   settings page inside a view has none of the padding the settings modal
+   provides. */
+
+/* No `display` here on purpose. `.ib-settings` is the pane itself, so setting
+   `display: flex` would beat `.ib-pane { display: none }` — same specificity,
+   later in the file — and the settings page would render underneath whichever
+   tab was actually open. `.ib-pane.is-active` already makes it a column flex
+   container; this only adds the cross-axis alignment. */
+.ib-settings {
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 40px;
+}
+
+/* Capped so a wide pane does not push the control a metre away from the label
+   it belongs to, and centred so that capped column sits in the middle of the
+   pane instead of hugging its left edge. Obsidian's own settings modal is about
+   this wide; a view pane can be three times that.
+
+   `width: 100%` then `max-width` — not auto margins. An auto margin in a flex
+   container's cross axis suppresses `stretch` entirely, so the rows would each
+   shrink to their own content and stop lining up with one another. */
+.ib-settings-group,
+.ib-settings-stamp {
+  width: 100%;
+  max-width: 900px;
+}
+
+.ib-settings-group {
+  margin-bottom: 20px;
+}
+
+.ib-settings-title {
+  margin: 14px 0 2px;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+
+.ib-settings-hint {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+.ib-settings-stamp {
+  padding-top: 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+

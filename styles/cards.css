@@ -1,0 +1,326 @@
+/* --------------------------------------------------------- the image tile */
+
+.ib-thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary);
+  /* Hairline drawn inside the box, so it hugs the rounded corners instead of
+     being clipped by them, and so the selection ring can replace it exactly.
+     Tiles still waiting for their thumbnail drop the frame entirely — a
+     hard-edged empty box reads as a broken image, and the skeleton below is
+     the whole placeholder. */
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+  /* Own stacking context: the backdrop below is scaled past the edges to hide
+     its own blur fringe, and that bleed must not escape the rounded tile. */
+  isolation: isolate;
+  /* Paint containment. The tile already clips (`overflow: hidden`) and already
+     owns a stacking context, so this adds no visible behaviour — it just tells
+     the engine that nothing inside can paint outside, which is what lets it
+     skip the whole subtree when the tile is scrolled out of view. Cheap on a
+     large grid, and free of the layout side effects of `content-visibility`. */
+  contain: paint;
+  /* box-shadow only: the tile itself no longer moves on hover (see below). */
+  transition: box-shadow var(--ib-dur-base) var(--ib-ease);
+}
+
+/* ------------------------------------------------ the thumbnail skeleton
+
+   Between "card mounted" and "thumbnail ready" the tile is a quiet sheet —
+   the same secondary background the grid already sits on, plus one soft band
+   of light drifting across it (the shimmer every photo grid uses). No border,
+   no icon, no contrast edge: the placeholder should promise *pixels coming*,
+   not demand attention for their absence. */
+
+.ib-thumb.is-pending {
+  box-shadow: none;
+}
+
+.ib-thumb.is-pending::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 32%,
+    var(--background-modifier-hover) 50%,
+    transparent 68%
+  );
+  transform: translateX(-100%);
+  animation: ib-shimmer 1.8s var(--ib-ease) infinite;
+  pointer-events: none;
+}
+
+@keyframes ib-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+body[data-ib-motion="none"] .ib-thumb.is-pending::after,
+body[data-ib-motion="reduced"] .ib-thumb.is-pending::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ib-thumb.is-pending::after {
+    animation: none;
+  }
+}
+
+/**
+ * Ambient backdrop — the picture itself, blown up, blurred and dimmed.
+ *
+ * A square cell showing a portrait plate with `object-fit: contain` leaves two
+ * bare bars. Filling them with more of the same image (the trick every
+ * streaming library and photo library uses) makes the letterbox part of the
+ * picture, and — unlike cropping to fill — never hides a single pixel. The
+ * `src` is identical to the one below, so the browser reuses the decode it
+ * already has: no extra request, no extra bytes.
+ */
+.ib-thumb-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(14px) saturate(1.5) brightness(0.94);
+  /* A blur samples transparent pixels past the border and leaves a pale fringe;
+     over-scaling pushes that fringe outside the clip. */
+  transform: scale(1.2);
+  opacity: 0.62;
+  transition: opacity var(--ib-dur-base) var(--ib-ease);
+}
+
+/* No bytes yet: stay invisible, then ride the transition up to 0.62 when the
+   thumbnail lands — the backdrop and the picture arrive as one image. */
+.ib-thumb-fill:not([src]) {
+  opacity: 0;
+}
+
+/**
+ * `scale-down` — contain, but never magnify.
+ *
+ * A 32px favicon blown up to fill a 150px cell is a grey smear that reads as a
+ * broken image. The lightbox already refuses to open past 100% for the same
+ * reason; the grid keeps the same promise. Small assets therefore sit at their
+ * true size on their own blurred backdrop, which also says something useful
+ * about the file.
+ */
+.ib-thumb-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: scale-down;
+  z-index: 1;
+  /* Real travel: the slow token with the decelerating curve makes the 5% zoom
+     read as the picture settling into place rather than twitching. */
+  transition: transform var(--ib-dur-slow) var(--ib-ease-out),
+    opacity var(--ib-dur-base) var(--ib-ease);
+}
+
+/* The hand-off from skeleton to picture: arriving pixels fade in over the
+   placeholder instead of popping over it. */
+.ib-thumb-img:not([src]) {
+  opacity: 0;
+}
+
+/* Fill mode: cover the cell, drop the backdrop — nothing is left to pad. */
+.ib-root.is-crop-thumbs .ib-thumb-fill {
+  display: none;
+}
+
+.ib-root.is-crop-thumbs .ib-thumb-img {
+  object-fit: cover;
+}
+
+/**
+ * Hover, without the lift, and without a ring.
+ *
+ * The tile used to translate up 2px, but it is not the only thing in the card:
+ * the checkbox, the reference pill and the caption are all pinned to the
+ * stationary card box. So the one part that moved was the one part nothing else
+ * followed — the picture now grows *inside* its cell instead, which reads as a
+ * stronger cue than either 2px of travel or an accent outline: the hover ring
+ * was a competing highlight over the photograph itself, and the quiet zoom is
+ * the whole cue now.
+ */
+.ib-card-image:hover .ib-thumb-img {
+  transform: scale(1.05);
+}
+
+.ib-card-image.is-selected .ib-thumb {
+  box-shadow: inset 0 0 0 2px var(--interactive-accent),
+    0 0 0 1px var(--interactive-accent);
+}
+
+/* A folder tile draws no ring of its own — the pile of prints is the card, and
+   its hover treatment lives on the layers themselves. */
+.ib-card-folder:hover .ib-thumb,
+.ib-card-folder .ib-thumb {
+  box-shadow: none;
+}
+
+.ib-thumb-folder {
+  color: var(--text-muted);
+}
+
+/* The fallback glyph, drawn only when folder previews are switched off. */
+.ib-thumb-folder > svg {
+  width: 46px;
+  height: 46px;
+  opacity: 0.7;
+}
+
+/**
+ * The caption block is exactly CARD_CHROME_HEIGHT (38px) of src/virtualGrid.ts:
+ * 8 + 16 + 1 (name) + 13 (meta) = 38. Line-heights are in px rather than
+ * ratios on purpose — a fractional line box makes the windowed grid's row
+ * height off by a hair, and the tiles stop being square by that hair. Change a
+ * padding or a line-height here and the constant has to move with it; the
+ * headless geometry probe asserts the two agree.
+ */
+.ib-caption {
+  padding: 8px 1px 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-smaller);
+  line-height: 16px;
+  transition: color var(--ib-dur-base) var(--ib-ease);
+}
+
+.ib-card-image:hover .ib-caption {
+  color: var(--text-accent);
+}
+
+/**
+ * One line, always. While searching it carries the location, the rest of the
+ * time the size. Three stacked rows of grey micro-type (name + path + size) is
+ * what pushed the pictures apart in the old grid.
+ */
+.ib-meta {
+  padding: 0 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 13px;
+  transition: color var(--ib-dur-base) var(--ib-ease);
+}
+
+.ib-card-image:hover .ib-meta {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------- empty state */
+
+.ib-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 24px;
+  color: var(--text-muted);
+  text-align: center;
+  animation: ib-rise var(--ib-dur-slow) var(--ib-ease-out);
+}
+
+@keyframes ib-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+body[data-ib-motion="none"] .ib-empty {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ib-empty {
+    animation: none;
+  }
+}
+
+/* The icon sits on a flat disc rather than bare: a glyph floating on the page
+   reads as a broken image, and the hover wash gives it the weight of a control
+   without a border or a shadow. */
+.ib-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: var(--ib-radius);
+  background: var(--background-modifier-hover);
+  color: var(--text-faint);
+}
+
+.ib-empty-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.ib-empty-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+
+.ib-empty-hint {
+  max-width: 420px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+}
+
+.ib-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* The empty state's buttons carry `ib-btn` (+ `mod-cta`) from TypeScript, so
+   they are literally the same object as every other button in the plugin —
+   shell-and-tree.css owns the look. Nothing to declare here. */
+
+/* Dropping onto empty grid space targets the folder being browsed. */
+
+.ib-grid-wrap.ib-drop-target {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+/* Drop indicators. A folder target is highlighted as a whole; a reorder
+   target gets a bar on the edge the item would land on. */
+
+.ib-insert-before::before,
+.ib-insert-after::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--interactive-accent);
+}
+
+.ib-insert-before::before {
+  left: -7px;
+}
+
+.ib-insert-after::after {
+  right: -7px;
+}
+

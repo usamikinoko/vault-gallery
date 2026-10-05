@@ -1,0 +1,10 @@
+{
+  "id": "vault-gallery",
+  "name": "Vault Gallery",
+  "version": "0.5.6",
+  "minAppVersion": "1.4.0",
+  "description": "An OSS-style image manager: a folder navigator, a virtualised thumbnail grid, stack previews, a pan-and-zoom lightbox, a 365-day history heatmap, and ZIP export with an optional password. Import by drag, paste or URL and filter unreferenced files.",
+  "author": "hypokinoko",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

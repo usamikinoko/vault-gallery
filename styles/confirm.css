@@ -1,0 +1,81 @@
+/* -------------------------------------------------- batch delete confirm */
+
+.ib-confirm-note {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.ib-confirm-warn {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-orange);
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary);
+}
+
+.ib-confirm-warn-title {
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+}
+
+.ib-confirm-warn-body {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.ib-confirm-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+}
+
+.ib-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+}
+
+.ib-confirm-row:last-child {
+  border-bottom: none;
+}
+
+.ib-confirm-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-confirm-path {
+  flex: 0 1 auto;
+  max-width: 42%;
+  overflow: hidden;
+  color: var(--text-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-confirm-ref {
+  flex: 0 0 auto;
+  color: var(--color-orange);
+  font-size: 10px;
+}
+
+.ib-confirm-more {
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.ib-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+

@@ -1,0 +1,139 @@
+/* ----------------------------------------------- folder stack (cover art) */
+
+.ib-thumb-stack {
+  background: transparent;
+  contain: paint;
+}
+
+/* The pile keeps a square footprint whatever the cell around it does — and it
+   is deliberately 94%, not 100%. Measured with a geometry probe: the widest
+   fan (three prints) spans 90.7% of the box at rest and 99.5% while hovered,
+   and a full-width stage shaves the rotated corners off both states. The 6%
+   headroom is the whole budget the fan has to move in; widen the fan or the
+   hover offsets and this number has to come down with them. */
+.ib-stack-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 94%;
+  aspect-ratio: 1 / 1;
+  max-height: 100%;
+  transform: translate(-50%, -50%);
+}
+
+.ib-stack-layer {
+  position: absolute;
+  inset: 13% 11% 11% 11%;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+  background: var(--background-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 3px 9px rgba(0, 0, 0, 0.13);
+  opacity: var(--o, 1);
+  transform-origin: 50% 100%;
+  transform: translate(var(--x, 0), var(--y, 0)) rotate(var(--r, 0deg)) scale(var(--s, 1));
+  transition: transform var(--ib-dur-slow) var(--ib-ease-out),
+    opacity var(--ib-dur-slow) var(--ib-ease);
+}
+
+.ib-stack-layer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Hover fans the pile a little wider and lifts the cover, so the card feels
+   like a physical object rather than a picture of one. The cover is named by
+   attribute because :last-of-type also matches the badge and the corner glyph. */
+
+.ib-card-folder:hover .ib-stack-layer[data-front] {
+  transform: translate(0, -3%) rotate(0deg) scale(1.045);
+}
+
+.ib-card-folder:hover .ib-stack-layer[data-layer="0"]:not([data-front]) {
+  transform: translate(calc(var(--x) - 3%), calc(var(--y) - 2%))
+    rotate(calc(var(--r) - 2deg)) scale(var(--s));
+}
+
+.ib-card-folder:hover .ib-stack-layer[data-layer="1"]:not([data-front]) {
+  transform: translate(calc(var(--x) + 3%), calc(var(--y) - 2%))
+    rotate(calc(var(--r) + 2deg)) scale(var(--s));
+}
+
+/* ------------------------------------------------- blank sheets (empty dir)
+
+   A directory with nothing to show still draws the same pile — the sheets are
+   just empty. Same silhouette, same weight in the grid, no second visual
+   language for "folder that has no images yet".
+
+   The sheets are *paper*, hard-coded, because paper is a material and not a
+   theme colour: a blank print stays a bright object on a dark desk, exactly
+   like the real prints beside it. Deriving them from --background-secondary
+   instead makes them darker than the page in dark themes, and the empty
+   folder turns into a hole. */
+
+.ib-stack-layer.is-blank-sheet {
+  border-style: dashed;
+  border-color: rgba(0, 0, 0, 0.18);
+  background: repeating-linear-gradient(
+    45deg,
+    #eeeeee 0 7px,
+    #e0e0e0 7px 14px
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 3px 9px rgba(0, 0, 0, 0.1);
+}
+
+body.theme-dark .ib-stack-layer.is-blank-sheet {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: repeating-linear-gradient(
+    45deg,
+    #d7d7d7 0 7px,
+    #c7c7c7 7px 14px
+  );
+}
+
+.ib-stack-blank-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8f8f8f;
+}
+
+.ib-stack-blank-icon svg {
+  width: 26px;
+  height: 26px;
+  opacity: 0.9;
+}
+
+/* ------------------------------------------------------ windowed rendering */
+
+.ib-vpad {
+  grid-column: 1 / -1;
+  pointer-events: none;
+}
+
+/* Windowed rendering pins an explicit row height, so the tile takes whatever
+   is left after the caption block. CARD_CHROME_HEIGHT is the number that makes
+   that leftover exactly square; if the caption/meta padding here changes, it
+   has to change there too or the tiles stop being square in big folders. */
+.ib-grid.is-virtual .ib-card {
+  height: 100%;
+  min-height: 0;
+}
+
+.ib-grid.is-virtual .ib-thumb {
+  flex: 1 1 auto;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.ib-grid.is-virtual .ib-caption,
+.ib-grid.is-virtual .ib-meta,
+.ib-grid.is-virtual .ib-folder-name,
+.ib-grid.is-virtual .ib-folder-meta {
+  flex: 0 0 auto;
+}
+

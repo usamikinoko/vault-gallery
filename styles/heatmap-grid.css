@@ -1,0 +1,293 @@
+/* ============================================================== v0.5 heatmap
+
+   A year of daily image counts, laid out the way GitHub lays out a year of
+   commits — because that picture needs no explaining. Two deliberate
+   departures, both because this data is not commits:
+
+     - colour is signed. A day the library grew paints in the theme's accent
+       colour; a day it shrank paints in the accent's *complement* (hue + 180°),
+       so the two directions stay legible in any theme and no fixed green/red
+       pair can clash with whatever colours the user picked.
+     - "not observed" and "no change" are drawn differently. The vault is not
+       open every day, and painting the days it was closed as days when nothing
+       happened would be the chart lying on its own.
+
+   The ramps live on <body> so the tooltip, which is positioned inside the
+   heatmap, picks them up from the same place the cells do.
+
+   The ladders are built with `color-mix` against the accent Obsidian already
+   exposes (`--interactive-accent`, plus its `--accent-h/s/l` parts), so
+   changing 设置 → 外观 → 主题色 re-colours the whole chart for free. Levels
+   1→2→3 shade toward the background (subtle), 3 is the accent itself, and 4
+   leans past it — toward black on light themes, toward white on dark ones —
+   which is the direction of "more" in each theme. */
+
+body {
+  --ib-heat-down-hue: calc(var(--accent-h, 258) + 180);
+  --ib-heat-down-base: hsl(
+    var(--ib-heat-down-hue) var(--accent-s, 80%) var(--accent-l, 68%)
+  );
+
+  --ib-heat-up-1: color-mix(in srgb, var(--interactive-accent) 32%, white);
+  --ib-heat-up-2: color-mix(in srgb, var(--interactive-accent) 60%, white);
+  --ib-heat-up-3: var(--interactive-accent);
+  --ib-heat-up-4: color-mix(in srgb, var(--interactive-accent) 72%, black);
+
+  --ib-heat-down-1: color-mix(in srgb, var(--ib-heat-down-base) 32%, white);
+  --ib-heat-down-2: color-mix(in srgb, var(--ib-heat-down-base) 60%, white);
+  --ib-heat-down-3: var(--ib-heat-down-base);
+  --ib-heat-down-4: color-mix(in srgb, var(--ib-heat-down-base) 72%, black);
+}
+
+body.theme-dark,
+body.dark {
+  --ib-heat-up-1: color-mix(in srgb, var(--interactive-accent) 38%, black);
+  --ib-heat-up-2: color-mix(in srgb, var(--interactive-accent) 66%, black);
+  --ib-heat-up-3: var(--interactive-accent);
+  --ib-heat-up-4: color-mix(in srgb, var(--interactive-accent) 68%, white);
+
+  --ib-heat-down-1: color-mix(in srgb, var(--ib-heat-down-base) 38%, black);
+  --ib-heat-down-2: color-mix(in srgb, var(--ib-heat-down-base) 66%, black);
+  --ib-heat-down-3: var(--ib-heat-down-base);
+  --ib-heat-down-4: color-mix(in srgb, var(--ib-heat-down-base) 68%, white);
+}
+
+.ib-heat-host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ib-heat {
+  --ib-heat-cell: 12px;
+  --ib-heat-gap: 3px;
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  /* Sized to the cells, not to the pane. 53 columns plus the weekday gutter come
+     to a fixed ~820px; letting the panel stretch to a 1258px pane instead would
+     strand the legend hundreds of pixels right of the chart it is labelling, and
+     "bottom-right of the heatmap" would mean "bottom-right of the window".
+     `align-self` centres it in the pane, which is a *column* flex container, so
+     the cross axis is horizontal and this is the one property that shifts it
+     sideways. `justify-content` here would move it up and down instead. */
+  align-self: center;
+  width: fit-content;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 16px 16px 12px;
+}
+
+/* --------------------------------------------------------------- headline */
+
+.ib-heat-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.ib-heat-big {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-heat-big-label {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.ib-heat-facts {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ib-heat-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ib-heat-fact-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.ib-heat-fact-value {
+  font-size: var(--font-ui-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-heat-fact-value.is-up {
+  color: var(--ib-heat-up-3);
+}
+
+.ib-heat-fact-value.is-down {
+  color: var(--ib-heat-down-3);
+}
+
+.ib-heat-note {
+  flex: 1 1 260px;
+  max-width: 44em;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.55;
+}
+
+/* ------------------------------------------------------------------- grid */
+
+.ib-heat-scroll {
+  /* Sized to its content, shrunk only when the pane is too short. A growing
+     scroller would push the footer to the bottom of the pane and leave the
+     legend floating hundreds of pixels below the chart it describes. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* A month label hangs to the right of the column it starts in; this is the
+     room it hangs into, so it never adds phantom scroll width. */
+  padding-right: 26px;
+}
+
+.ib-heat-body {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  grid-template-rows: auto auto;
+  column-gap: 7px;
+  row-gap: 4px;
+  width: max-content;
+}
+
+.ib-heat-months,
+.ib-heat-cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--ib-heat-cell);
+  column-gap: var(--ib-heat-gap);
+}
+
+.ib-heat-months {
+  grid-column: 2;
+  grid-row: 1;
+  height: 13px;
+}
+
+.ib-heat-month {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ib-heat-weekdays {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, var(--ib-heat-cell));
+  row-gap: var(--ib-heat-gap);
+  align-items: center;
+  justify-items: end;
+}
+
+.ib-heat-weekday {
+  color: var(--text-faint);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ib-heat-cells {
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-rows: repeat(7, var(--ib-heat-cell));
+  row-gap: var(--ib-heat-gap);
+}
+
+/* The hairline is an `outline` rather than `box-shadow: inset` because it *is*
+   a 1px stroke — saying so in the property that means it costs no shadow layer
+   is the whole point of the flat pass.
+
+   Radius 2px, not the 4px `--ib-radius`: a heat cell is 12px, and the component
+   radius on a mark that small reads as a circle. Marks share the *bar* radius
+   (2px) — the same value the drag-insert line and the tab underline use — so
+   the exception is one value short, not a second design language. */
+.ib-heat-cell {
+  width: var(--ib-heat-cell);
+  height: var(--ib-heat-cell);
+  border-radius: 2px;
+  background: var(--background-secondary-alt);
+  outline: 1px solid var(--background-modifier-border);
+  outline-offset: -1px;
+}
+
+/* Outside the 365-day window: the grid stays a clean rectangle without
+   claiming those days are data. */
+.ib-heat-cell.is-out {
+  visibility: hidden;
+}
+
+/* Never observed — the vault was not open that day. Hatched rather than blank,
+   because blank is a claim and this is the absence of one. */
+.ib-heat-cell[data-dir="none"] {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 2px,
+    var(--background-modifier-border) 2px 3.5px
+  );
+  outline: 1px solid var(--background-modifier-border);
+  outline-offset: -1px;
+}
+
+/* The first record: a total with nothing before it to compare against. Hollow,
+   so it reads as "known but unfinished" rather than as a level. */
+.ib-heat-cell[data-dir="base"] {
+  background: transparent;
+  outline: 1px solid var(--text-faint);
+  outline-offset: -1px;
+}
+
+/* Observed, and nothing moved. */
+.ib-heat-cell[data-dir="flat"] {
+  background: var(--background-secondary-alt);
+}
+
+.ib-heat-cell[data-dir="up"][data-level="1"] {
+  background: var(--ib-heat-up-1);
+}
+
+.ib-heat-cell[data-dir="up"][data-level="2"] {
+  background: var(--ib-heat-up-2);
+}
+
+.ib-heat-cell[data-dir="up"][data-level="3"] {
+  background: var(--ib-heat-up-3);
+}
+
+.ib-heat-cell[data-dir="up"][data-level="4"] {
+  background: var(--ib-heat-up-4);
+}
+
+.ib-heat-cell[data-dir="down"][data-level="1"] {
+  background: var(--ib-heat-down-1);
+}
+
+.ib-heat-cell[data-dir="down"][data-level="2"] {
+  background: var(--ib-heat-down-2);
+}
+
+.ib-heat-cell[data-dir="down"][data-level="3"] {
+  background: var(--ib-heat-down-3);
+}
+
+.ib-heat-cell[data-dir="down"][data-level="4"] {
+  background: var(--ib-heat-down-4);
+}

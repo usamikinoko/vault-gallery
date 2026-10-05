@@ -1,0 +1,222 @@
+/* ------------------------------------------------------------- lightbox */
+
+.ib-detail-modal {
+  width: min(1040px, 92vw);
+  max-width: 1040px;
+}
+
+/* The preview is a viewport, not a picture in a frame: the image inside is
+   positioned by transform, so the box itself must own a fixed height and clip
+   whatever pans out of view. */
+.ib-detail-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* A recessed well rather than the modal's own surface: in light theme the
+   picture then reads as floating, in dark theme the surround is darker than
+   the modal, which is what makes an image pop. */
+.ib-detail-stage {
+  position: relative;
+  width: 100%;
+  height: min(58vh, 620px);
+  overflow: hidden;
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary-alt);
+  cursor: zoom-in;
+  /* Without this, a touch drag scrolls the modal instead of panning. */
+  touch-action: none;
+}
+
+.ib-detail-stage.is-pannable {
+  cursor: grab;
+}
+
+.ib-detail-stage.is-grabbing {
+  cursor: grabbing;
+}
+
+/* The picture is held at zero opacity until the modal has measured it and
+   written the fit transform. Without that beat the <img> gets painted once at
+   its natural size — a full-bleed crop of a 4000px photo inside a 700px well —
+   and only then snaps to the fit scale. That one painted frame is what made
+   opening a picture look like broken styling rather than like an arrival. */
+.ib-detail-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Sized in image pixels by the modal, so scale 1 === 100% and the readout is
+     honest. Never let the theme's img rules clamp it. */
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+  transform-origin: 0 0;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+  opacity: 0;
+  /* The picture's own transition at rest is the arrival fade. Transform is
+     deliberately *not* listed here: see .is-animating below. */
+  transition: opacity var(--ib-dur-slow) var(--ib-ease-out);
+}
+
+.ib-detail-img.is-ready {
+  opacity: 1;
+}
+
+/* Only transitions applied to discrete jumps (buttons, double-click, fit).
+   Wheel and drag remove the class first so the gesture stays welded to the
+   pointer instead of trailing an ease behind it. 190ms is the same value as
+   --ib-dur-slow, which the modal's is-animating timer is sized against. */
+.ib-detail-img.is-animating {
+  transition: transform var(--ib-dur-slow) var(--ib-ease-out);
+}
+
+.ib-detail-stage.is-broken::after {
+  content: "无法显示这张图片";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+/* ------------------------------------------------------------- zoom bar */
+
+.ib-zoom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+
+body .ib-zoom-btn {
+  height: var(--ib-control-h);
+  min-width: var(--ib-control-h);
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--ib-radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color var(--ib-dur-fast) var(--ib-ease),
+    color var(--ib-dur-fast) var(--ib-ease);
+}
+
+body .ib-zoom-btn.is-icon {
+  padding: 0;
+  font-size: 16px;
+}
+
+body .ib-zoom-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+body .ib-zoom-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.ib-zoom-pct {
+  min-width: 46px;
+  padding: 0 2px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  /* A changing width under the buttons would make the whole bar twitch while
+     you scroll; tabular figures plus a fixed box keep it still. */
+  cursor: default;
+}
+
+.ib-zoom-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--background-modifier-border);
+}
+
+.ib-zoom-hint {
+  padding: 0 8px 8px;
+  background: var(--background-secondary);
+  color: var(--text-faint);
+  font-size: 10px;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .ib-zoom-hint {
+    display: none;
+  }
+}
+
+body .ib-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  width: 34px;
+  height: 58px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: 24px;
+  line-height: 1;
+  opacity: 0.5;
+  transform: translateY(-50%);
+  transition: opacity var(--ib-dur-fast) var(--ib-ease);
+  z-index: 10;
+}
+
+body .ib-lightbox-nav:hover {
+  opacity: 1;
+}
+
+body .ib-lightbox-nav.is-prev {
+  left: 6px;
+}
+
+body .ib-lightbox-nav.is-next {
+  right: 6px;
+}
+
+/* Top-right of the picture area rather than bottom-centre: the zoom bar now
+   owns the bottom edge. It floats over the artwork, so it gets a solid chip
+   and a hairline border instead of a themed tint that vanishes on a bright
+   photo — a shadow would only blur its edge into the picture behind it. */
+.ib-lightbox-counter {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 9px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--ib-radius);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 10px;
+  z-index: 10;
+}
+
+.ib-detail-val.is-orphan {
+  color: var(--color-orange);
+}
+
+.ib-detail-hint {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+

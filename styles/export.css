@@ -1,0 +1,98 @@
+/* ============================================================== v0.5 export */
+
+.ib-export-modal {
+  width: min(580px, 92vw);
+}
+
+.ib-export-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ib-export-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary);
+}
+
+.ib-export-count {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-export-path {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  word-break: break-all;
+}
+
+.ib-export-note {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.55;
+}
+
+.ib-export-progress-label {
+  margin-bottom: 6px;
+  font-size: var(--font-ui-small);
+}
+
+.ib-export-bar {
+  height: 8px;
+  border-radius: var(--ib-radius);
+  background: var(--background-secondary-alt);
+  overflow: hidden;
+}
+
+.ib-export-bar-fill {
+  width: 0;
+  height: 100%;
+  background: var(--interactive-accent);
+  transition: width var(--ib-dur-base) var(--ib-ease);
+}
+
+.ib-export-progress-text {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ib-export-done {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ib-export-done-title {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+
+.ib-export-done-detail {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ib-export-done-path {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  word-break: break-all;
+}
+
+.ib-export-failed {
+  color: var(--text-error);
+  font-size: var(--font-ui-small);
+  line-height: 1.55;
+}
